@@ -1,0 +1,26 @@
+{
+  "helperImage": "podroute-gateway:local",
+  "namespaces": ["vpn"],
+  "nativeSidecar": true,
+  "network": {
+    "gatewayHost": "podroute-gateway.vpn-gateway.svc.cluster.local",
+    "overlayCIDR": "172.16.1.0/24",
+    "vxlanID": 42,
+    "vxlanPort": 4789,
+    "vpnInterface": "wg0",
+    "vpnProtocol": "udp",
+    "vpnPort": 51820,
+    "vpnEndpointCIDRs": [],
+    "clientBypassCIDRs": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
+    "gatewayBypassCIDRs": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
+    "clusterDNS": ["10.43.0.10"],
+    "upstreamDNS": ["1.1.1.1", "9.9.9.9"],
+    "clusterDomain": "cluster.local",
+    "localDomains": ["local"],
+    "dnssec": true,
+    "dhcpStart": 20,
+    "mtu": 1420,
+    "retrySeconds": 10,
+    "staticClients": []
+  }
+}

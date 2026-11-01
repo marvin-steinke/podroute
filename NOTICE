@@ -1,0 +1,8 @@
+PodRoute is a local refactor of:
+- gateway-admision-controller: https://github.com/angelnu/gateway-admision-controller
+- pod-gateway: https://github.com/angelnu/pod-gateway
+
+Both upstream repositories use Apache License 2.0; see LICENSE.
+The controller, configuration, gateway scripts and build/test infrastructure
+have been rewritten or modified for PodRoute. Upstream module and image names
+are retained only as provenance and migration references.

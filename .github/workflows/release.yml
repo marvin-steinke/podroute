@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable tag to release (vMAJOR.MINOR.PATCH)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  queue: max
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve immutable release target
+        id: target
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        with:
+          script: |
+            const { resolveRelease } = require('./.github/scripts/release.cjs');
+            await resolveRelease({ github, context, core });
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.target.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install test dependencies and load networking modules
+        run: |
+          sudo -n apt-get update
+          sudo -n apt-get install -y jq shellcheck
+          sudo -n modprobe vxlan
+          sudo -n modprobe wireguard
+          sudo -n modprobe ip6table_filter
+      - name: Test and build release images
+        env:
+          IMAGE_VERSION: ${{ steps.target.outputs.version }}
+          IMAGE_REVISION: ${{ steps.target.outputs.sha }}
+          IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          make test lint build
+          node --test .github/scripts/release.test.cjs
+          make images test-runtime test-network CONTAINER=docker
+      - name: Log in to GHCR after tests pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish tested images and GitHub release
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.target.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.target.outputs.version }}
+          RELEASE_SHA: ${{ steps.target.outputs.sha }}
+        with:
+          script: |
+            const { publish } = require('./.github/scripts/release.cjs');
+            await publish({ github, context, core });
